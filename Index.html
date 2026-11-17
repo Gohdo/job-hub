@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Job Hub: every board, one hourly sweep</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap">
+<style>
+:root{--bg:#eaf0ef;--surface:#f8fbfa;--ink:#13242b;--mute:#5b6e74;--line:#c9d6d4;--accent:#0b6e66;--accent-ink:#fff;--due:#c2570c;--due-bg:#fdeede;--ok:#0b6e66;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1a1e;--surface:#162529;--ink:#e6f0ee;--mute:#8fa5a9;--line:#2a3d42;--accent:#4fd1c5;--accent-ink:#06201d;--due:#ffa75a;--due-bg:#33241a;--ok:#4fd1c5;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e1a1e;--surface:#162529;--ink:#e6f0ee;--mute:#8fa5a9;--line:#2a3d42;--accent:#4fd1c5;--accent-ink:#06201d;--due:#ffa75a;--due-bg:#33241a;--ok:#4fd1c5;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 "Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1040px;margin:0 auto;padding:28px 20px 56px}
+header{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center;margin-bottom:28px}
+h1{font-size:clamp(28px,5vw,46px);line-height:1.05;margin:0 0 8px;font-weight:800;letter-spacing:-.02em}
+header p{margin:0;color:var(--mute);max-width:46ch}
+.ring{position:relative;width:132px;height:132px;flex:none}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:9}
+.ring .track{stroke:var(--line)}
+.ring .bar{stroke:var(--accent);stroke-linecap:round;transition:stroke-dashoffset .9s linear}
+.ring .t{position:absolute;inset:0;display:grid;place-content:center;text-align:center;font-weight:800;font-size:26px;font-variant-numeric:tabular-nums;line-height:1.1}
+.ring .t small{display:block;font-weight:400;font-size:12px;color:var(--mute)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:22px}
+.fields{display:grid;grid-template-columns:2fr 1.4fr 1fr;gap:12px}
+label{display:block;font-size:13px;color:var(--mute);margin-bottom:4px}
+input[type=text],select{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin-top:14px}
+.row label{display:inline-flex;gap:6px;align-items:center;margin:0;color:var(--ink);font-size:14px}
+.btns{display:flex;flex-wrap:wrap;gap:10px;margin-left:auto}
+button{font:inherit;font-weight:600;padding:10px 16px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.status{font-size:14px;color:var(--mute);margin:0 0 14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.card{display:flex;flex-direction:column;gap:6px;padding:14px;border:1px solid var(--line);border-left:5px solid var(--ok);border-radius:10px;background:var(--surface);text-decoration:none;color:inherit}
+.card:hover{border-color:var(--accent)}
+.card.due{border-left-color:var(--due);background:var(--due-bg)}
+.card.off{display:none}
+.card b{font-size:18px}
+.card span{font-size:13px;color:var(--mute)}
+.card .when{font-weight:600;color:var(--ok)}
+.card.due .when{color:var(--due)}
+.note{font-size:13px;color:var(--mute);margin-top:26px;max-width:70ch}
+@media (max-width:700px){header{grid-template-columns:1fr}.fields{grid-template-columns:1fr}.btns{margin-left:0}}
+@media (prefers-reduced-motion:reduce){.ring .bar{transition:none}}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div>
+    <h1>Job Hub</h1>
+    <p>One search, every job board. Each hour the hub flags the boards that are due for a fresh look and opens them with your filters applied.</p>
+  </div>
+  <div class="ring" aria-live="off">
+    <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="track" cx="60" cy="60" r="52"/><circle class="bar" id="bar" cx="60" cy="60" r="52"/></svg>
+    <div class="t"><span id="clock">60:00</span><small>to next sweep</small></div>
+  </div>
+</header>
+
+<section class="panel" aria-label="Search">
+  <div class="fields">
+    <div><label for="q">Job title or keywords</label><input id="q" type="text" placeholder="e.g. product designer"></div>
+    <div><label for="l">Location</label><input id="l" type="text" placeholder="e.g. Portland, OR"></div>
+    <div><label for="age">Posted within</label>
+      <select id="age"><option value="1h">Last hour</option><option value="1d" selected>Last 24 hours</option><option value="7d">Last 7 days</option></select></div>
+  </div>
+  <div class="row">
+    <label><input type="checkbox" id="remote"> Remote only</label>
+    <label><input type="checkbox" id="auto"> Open due boards automatically each hour</label>
+    <div class="btns">
+      <button id="notify">Enable alerts</button>
+      <button id="sweep" class="primary">Open due boards</button>
+    </div>
+  </div>
+</section>
+
+<p class="status" id="status"></p>
+<div class="grid" id="grid"></div>
+
+<p class="note">Job boards don’t allow their listings to be embedded or copied into other pages, so this hub sends your exact search to each board instead. Your search, board choices and check times are saved in this browser. Keep this tab open for the hourly sweep and alerts; allow pop-ups if you use automatic opening.</p>
+</main>
+
+<script>
+(function(){
+var HOUR=3600000;
+var boards=[
+{id:"li",name:"LinkedIn",note:"Largest professional network",u:function(s){return "https://www.linkedin.com/jobs/search/?keywords="+s.q+"&location="+s.l+"&f_TPR="+({"1h":"r3600","1d":"r86400","7d":"r604800"}[s.age])+(s.remote?"&f_WT=2":"")}},
+{id:"in",name:"Indeed",note:"Broadest listing volume",u:function(s){return "https://www.indeed.com/jobs?q="+s.q+"&l="+(s.remote?encodeURIComponent("remote"):s.l)+"&fromage="+({"1h":"1","1d":"1","7d":"7"}[s.age])}},
+{id:"gd",name:"Glassdoor",note:"Listings with salary and reviews",u:function(s){return "https://www.glassdoor.com/Job/jobs.htm?sc.keyword="+s.q+"&locKeyword="+s.l+"&fromAge="+({"1h":"1","1d":"1","7d":"7"}[s.age])+(s.remote?"&remoteWorkType=1":"")}},
+{id:"zr",name:"ZipRecruiter",note:"One-tap applications",u:function(s){return "https://www.ziprecruiter.com/jobs-search?search="+s.q+"&location="+s.l+"&days="+({"1h":"1","1d":"1","7d":"5"}[s.age])+(s.remote?"&refine_by_location_type=only_remote":"")}},
+{id:"gg",name:"Google Jobs",note:"Pulls from many smaller sites",u:function(s){return "https://www.google.com/search?q="+s.q+"+jobs+"+(s.remote?"remote":s.l)+"&ibp=htl;jobs"}},
+{id:"dc",name:"Dice",note:"Tech and engineering roles",u:function(s){return "https://www.dice.com/jobs?q="+s.q+"&location="+s.l+"&filters.postedDate="+({"1h":"ONE","1d":"ONE","7d":"SEVEN"}[s.age])+(s.remote?"&filters.isRemote=true":"")}},
+{id:"sh",name:"SimplyHired",note:"Local and entry-level roles",u:function(s){return "https://www.simplyhired.com/search?q="+s.q+"&l="+s.l+"&t="+({"1h":"1","1d":"1","7d":"7"}[s.age])}},
+{id:"mo",name:"Monster",note:"Long-running general board",u:function(s){return "https://www.monster.com/jobs/search?q="+s.q+"&where="+s.l}},
+{id:"ro",name:"Remote OK",note:"Remote-only roles",u:function(s){return "https://remoteok.com/remote-"+decodeURIComponent(s.q).trim().replace(/\s+/g,"-").toLowerCase()+"-jobs"}},
+{id:"ww",name:"We Work Remotely",note:"Remote-only roles",u:function(s){return "https://weworkremotely.com/remote-jobs/search?term="+s.q}},
+{id:"us",name:"USAJOBS",note:"US federal government",u:function(s){return "https://www.usajobs.gov/search/results/?k="+s.q+"&l="+s.l}}
+];
+var $=function(i){return document.getElementById(i)};
+var KEY="jobhub.v1",st={q:"",l:"",age:"1d",remote:false,auto:false,off:{},checked:{},next:Date.now()+HOUR};
+try{var raw=localStorage.getItem(KEY);if(raw){var o=JSON.parse(raw);for(var k in o)st[k]=o[k]}}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}}
+function sv(){return {q:encodeURIComponent(st.q.trim()),l:encodeURIComponent(st.l.trim()),age:st.age,remote:st.remote}}
+function ago(t){if(!t)return "Not checked yet";var m=Math.floor((Date.now()-t)/60000);return m<1?"Checked just now":m<60?"Checked "+m+" min ago":"Checked "+Math.floor(m/60)+" h ago"}
+function due(b){var t=st.checked[b.id];return !t||Date.now()-t>=HOUR}
+function url(b){return b.u(sv())}
+function render(){
+  var g=$("grid");g.innerHTML="";
+  boards.forEach(function(b){
+    var a=document.createElement("a");a.className="card"+(due(b)?" due":"")+(st.off[b.id]?" off":"");
+    a.href=url(b);a.target="_blank";a.rel="noopener noreferrer";
+    a.innerHTML="<b>"+b.name+"</b><span>"+b.note+"</span><span class=\"when\">"+(due(b)?"Due. ":"")+ago(st.checked[b.id])+"</span>";
+    a.addEventListener("click",function(){st.checked[b.id]=Date.now();save();setTimeout(render,50)});
+    g.appendChild(a);
+  });
+  var n=boards.filter(function(b){return !st.off[b.id]&&due(b)}).length;
+  $("status").textContent=n?n+" board"+(n>1?"s":"")+" due for a check.":"All boards are up to date.";
+}
+function openDue(){
+  if(!st.q.trim()){$("status").textContent="Enter a job title or keywords first.";$("q").focus();return}
+  boards.filter(function(b){return !st.off[b.id]&&due(b)}).forEach(function(b){
+    var w=window.open(url(b),"_blank","noopener");if(w!==undefined)st.checked[b.id]=Date.now();
+  });
+  save();render();
+}
+function toggles(){
+  var row=document.createElement("div");row.className="row";row.style.marginTop="12px";
+  boards.forEach(function(b){
+    var l=document.createElement("label"),c=document.createElement("input");c.type="checkbox";c.checked=!st.off[b.id];
+    c.addEventListener("change",function(){st.off[b.id]=!c.checked;save();render()});
+    l.appendChild(c);l.appendChild(document.createTextNode(b.name));row.appendChild(l);
+  });
+  document.querySelector(".panel").appendChild(row);
+}
+function sweep(){
+  st.next=Date.now()+HOUR;boards.forEach(function(b){});save();render();
+  var n=boards.filter(function(b){return !st.off[b.id]}).length;
+  try{if(window.Notification&&Notification.permission==="granted")new Notification("Job Hub",{body:"Hourly sweep: "+n+" boards are ready to check for “"+st.q+"”."})}catch(e){}
+  if(st.auto&&st.q.trim())openDue();
+}
+function tick(){
+  var left=st.next-Date.now();
+  if(left<=0){sweep();left=st.next-Date.now()}
+  var s=Math.max(0,Math.ceil(left/1000)),m=Math.floor(s/60);
+  $("clock").textContent=(m<10?"0":"")+m+":"+(s%60<10?"0":"")+s%60;
+  var C=2*Math.PI*52,bar=$("bar");bar.style.strokeDasharray=C;bar.style.strokeDashoffset=C*(1-left/HOUR);
+}
+$("q").value=st.q;$("l").value=st.l;$("age").value=st.age;$("remote").checked=st.remote;$("auto").checked=st.auto;
+["q","l"].forEach(function(i){$(i).addEventListener("input",function(){st[i]=$(i).value;save();render()})});
+$("age").addEventListener("change",function(){st.age=$("age").value;save();render()});
+$("remote").addEventListener("change",function(){st.remote=$("remote").checked;save();render()});
+$("auto").addEventListener("change",function(){st.auto=$("auto").checked;save()});
+$("sweep").addEventListener("click",openDue);
+$("notify").addEventListener("click",function(){
+  if(!window.Notification){$("status").textContent="This browser doesn’t support alerts.";return}
+  Notification.requestPermission().then(function(p){$("status").textContent=p==="granted"?"Alerts on. You’ll get one each hour.":"Alerts are blocked in your browser settings."});
+});
+toggles();render();tick();setInterval(tick,1000);setInterval(render,60000);
+})();
+</script>
+</body>
+</html>
